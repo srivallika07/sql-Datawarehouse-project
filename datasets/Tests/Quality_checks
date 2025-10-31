@@ -1,0 +1,145 @@
+*For crm_cust_info TABLE**
+
+-- IN cst_id we have duplicates and null.// checking cst_id
+
+select cst_id,
+count(*)
+from silver.crm_cust_info
+group by cst_id
+HAVING Count(*) > 1 or cst_id is null;  
+
+---checking firstname ,last name and gender
+
+select cst_firstname from silver.crm_cust_info
+WHERE cst_firstname != trim(cst_firstname);
+
+select cst_lastname from silver.crm_cust_info
+WHERE cst_lastname != trim(cst_lastname);
+
+select cst_gndr from silver.crm_cust_info
+WHERE cst_gndr != trim(cst_gndr);
+
+select DISTINCT cst_gndr from silver.crm_cust_info;
+
+---cleaning marital status giving full name to the column.
+
+select cst_marital_status from bronze.crm_cust_info where cst_marital_status!=trim(cst_marital_status);
+
+select DISTINCT cst_marital_status from silver.crm_cust_info;
+
+
+
+**For cmr_prd_info Table*
+
+--checking null and duplicates values in prd_id.
+
+select prd_id,
+count(*)
+from bronze.crm_prd_info
+group by prd_id
+HAVING Count(*) > 1 or prd_id is null;
+
+
+select 
+prd_id,
+REPLACE(SUBSTRING(prd_key,1,5),'-','_') as Cat_id,
+SUBSTRING(prd_key,7,LEN(prd_key)) as prd_key,
+ISNULL(prd_cost,0) as prd_cost
+from bronze.crm_prd_info
+
+select prd_num from bronze.crm_prd_info
+Where prd_num != TRIM(prd_num);
+
+
+--checking prd_cost should not in negative and 0.
+
+select prd_cost from bronze.crm_prd_info
+Where prd_cost is  null or prd_cost <=0;
+
+
+select
+CASE
+WHEN UPPER(TRIM(prd_line))='M' THEN 'Mountain'
+WHEN UPPER(TRIM(prd_line))='R' THEN 'Road'
+WHEN UPPER(TRIM(prd_line))='S' THEN 'Other Sales'
+WHEN UPPER(TRIM(prd_line))='T' THEN 'Touring'
+ELSE 'n/a'
+END AS prd_line
+from bronze.crm_prd_info
+
+
+select 
+CAST(prd_start_dt AS DATE) AS prd_start_dt,
+CAST(LEAD(prd_start_dt) OVER (PARTITION BY prd_key ORDER BY prd_start_dt) -1 AS DATE) AS prd_end_dt
+from bronze.crm_prd_info
+
+
+* For crm_sales_details Table **
+
+select sls_ord_num,count(*) from bronze.crm_sales_details
+group by sls_ord_num having count(sls_ord_num)>1; 
+
+--convertion of int type data into an date type./checking
+select cast(cast(sls_order_dt as varchar)as date) from bronze.crm_sales_details;
+select sls_order_dt from bronze.crm_sales_details where len(sls_order_dt) !=8 or sls_order_dt is null;
+
+--checking sales column where the sales =price * quatity and not be null.
+select sls_sales from bronze.crm_sales_details where sls_sales is null or sls_sales <=0 or
+sls_sales != sls_quantity *abs(sls_price) ;
+
+--checking price column.
+select sls_price from bronze.crm_sales_details where sls_price is null or sls_price <=0 or 
+sls_price != sls_sales/sls_quantity ;
+
+--checking the sales column .
+
+select case when sls_sales is null or sls_sales<=0 or sls_sales !=sls_quantity * abs(sls_price)
+then sls_quantity * abs(sls_price)
+else sls_sales
+end as sls_sales from bronze.crm_sales_details;
+
+
+* For erp_cust_az12 Table **
+
+-- checking cid
+SELECT 
+CASE 
+WHEN cid LIKE 'NAS%' THEN SUBSTRING(cid,4,len(cid))
+ELSE CID
+END CID
+FROM bronze.erp_cust_az12;
+
+--checking the bdate should not more than present date and not include the people whose age is greater than 100.
+select bdate from bronze.erp_cust_az12 where bdate > GETDATE() or bdate <'1925-10-17';
+
+--checking the gen where we have null and inproper names.
+select distinct gen from bronze.erp_cust_az12;
+
+
+* For erp_loc_a101 Table **
+
+--checking the country 
+select 
+REPLACE(cid,'-','') as cid,
+CASE
+WHEN TRIM(cntry)='DE' THEN 'Germany'
+WHEN TRIM(cntry) IN('US','USA') THEN 'United States'
+when TRIM(cntry)='' or cntry IS NULL THEN 'n/a'
+ELSE cntry
+END AS cntry
+from  bronze.erp_loc_a101;
+
+SELECT DISTINCT cntry from bronze.erp_loc_a101;
+
+
+* For erp_px_cat_g1v2 Table **
+
+--checking all the columns in table erp_px_cat_g1v2.
+select id from bronze.erp_px_cat_g1v2;
+
+select cat from bronze.erp_px_cat_g1v2;
+
+select subcat from bronze.erp_px_cat_g1v2;
+
+select distinct maintenance from bronze.erp_px_cat_g1v2;
+
